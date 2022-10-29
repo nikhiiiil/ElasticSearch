@@ -1,0 +1,140 @@
+sudo sysctl -w vm.max_map_count=262144
+
+
+To Install Elastic Search:
+0) sudo sysctl -w vm.max_map_count=262144 // Only if throws error to increase virtual memory for docker
+1) docker network create elastic
+2) docker run -d -e ES_JAVA_OPTS="-Xms512m -Xmx512m" -e ELASTIC_PASSWORD="elastic" -v datanode0:/usr/share/elasticsearch/data --name ngp-elastic-0 -p 9200:9200 -p 9300:9300 --net elastic  docker.elastic.co/elasticsearch/elasticsearch:8.4.1
+3) docker cp ngp-elastic-0:/usr/share/elasticsearch/config/certs/http_ca.crt .
+4) curl --cacert http_ca.crt -u "elastic:elastic" https://localhost:9200
+
+To Generate Enrollment token for elastic node:
+5) docker exec -it ngp-elastic-0 /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s node
+6) docker run -e ENROLLMENT_TOKEN="<token>" --name ngp-elastic-1 -v datanode1:/usr/share/elasticsearch/data --net elastic -it docker.elastic.co/elasticsearch/elasticsearch:8.4.1
+
+TO Generate new Enrollement token for kibana:
+7) docker exec -it ngp-elastic-0 /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana
+
+TO Reset Elastic Password:
+8) docker exec -it ngp-elastic-0 /usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic
+
+
+
+To Install Kibana:
+1) docker pull docker.elastic.co/kibana/kibana:8.4.1
+2) docker run -d --name ngp-kibana --net elastic -p 5601:5601 docker.elastic.co/kibana/kibana:8.4.1
+
+
+Elastic Search:
+
+Node- Instance of elastic search, any number of nodes can run in a single machine
+
+Cluster- group of nodes of same instances
+
+Document- Each unit of data stored in elastic search is called document, json object.
+
+Documents can be equialent to tables in sql, fields can be equivalent to column in tables
+
+Indices- Collections of documents with similar characteristics
+
+
+Summary-1:
+1) Node store data that we add to Elastic Search
+2) A Cluster is a collection of nodes
+3) Data is stored as documents which are jsonObjects
+4) Documents are grouped together with indices
+
+Inspect The Elastic Search Cluster:
+1) Indices with prefix dot(.) indicates its a system indices
+2) TLS is required when communicating with elastic user Https instead of http
+3) For Local Deployments Specify either --insecure or --cacert
+4) Requests must be authenticated use elastic user and auto-generated passwords
+5) Specify Content-Type header when sending request body
+
+Sharding & Scalability:
+1) Sharding is a way to split index into smaller pieces each being a shard
+2) Sharding helps to grow index in size, through put in size 
+3) Consider a elastic with node size of 50Gb, now if you have a single index with 70GB it would be fit in a single index, not if you shard your index into 2 or multiple shards then each shard may present in different node.
+4) Sharding makes it easier to fit larger index onto nodes
+5) Default index has only 1 shard, can be configured while creating a index
+6) Sharding helps in distributed query
+7) Sharding enables us to scale the data volume. Adding more nodes to the cluster helps too, but only to a certain extent (unless there are no very large indices).
+8) An index is divided into one or more shards, where each shard stores a part of the index' data.
+9) An index will contain one shard for Elasticsearch >= 7.0.0.
+
+
+Replication:
+1) Hardware can fail at anytime so to keep your safe you need to replicate your data so that it can be fetched from other node
+2) ElasticSearch supports replication by default
+3) Replication is configured at index level
+4) Replication works by creating a replica of shards that a index can contain, refered to as replicas or replica shards
+5) A shard that has been replicated is called primary shard
+6) A primary shard and its replica shards are called replication group
+7) Replica shards are a complete copy of primary shards, which can serve search requests just like primary shards
+8) The number of replica shards can be configured at index creation
+9) Replica shards are never stored in same node as primary shard
+10) Replication helps only if you have more than 1 node else no point in replication
+11) Even tho replication is configured at index creation elastic is only going to replicate only there are more than 1 node
+12) Replica shards of a replication group can server different requests simultaniously this increases the no of requests can be handled at the same time
+13) Elasic intelligently routes requests to the best shards based on number of parameters
+14) Assume you have 1 node elastic cluster and you have created a new index, then you can see immediately index and cluser state is changed to yellow because the default 1 replica shard is unassigned as there is only 1 node elastic wouldnt assign replica shard to the same node. Yellow state is a warning that data loss can happen if the node is lost or crashed as the replica shard is not assigned.
+15) Assume you have 1 node cluster and default kibana indices are having 0 replicas because kibana indices are configures with a settings called "auto_expand_replicas with value of 0-1" when a new node is available
+16) Replication ensures that if a node goes down, data will be available on a different node (provided that the cluster consists of more than one node).
+17) By default for a newly created index 2 shards are created (1 primary shard + 1 replica shard)
+
+
+Snapshots:
+1) Elasticsearch supports taking backups as snapshots to restore data
+2) Snapshot can be used to restore to a given point in time
+3) Snapshots can be taken at index level or for entire cluster
+4) Use snapshots for daily backups and replication for high availability and performance
+
+Node Roles:
+1) Data in indices are stored in shards and shards are stored in nodes based on the roles of the node
+2) you can find the node role in the nodes apis where node.role column tells (dim stands for data,ingest,master)
+Mater Role:
+1) A Node can be elected as master node by voting process
+2) Configuration node.master=true|false can be given to multiple nodes 
+3) A master node is responsible for creating/deleting indexes among others
+4) A node with master role doesnt automatically becomes master node unless there are no other master nodes available
+
+Data Role:
+1) Enables a node to store data
+2) Storing data includes performing search queries relates to the data
+3) for smaller clusters this role is already enabled 
+4) Used for having dedicated master nodes
+5) Configuration: node.data=true|false
+
+Ingest Role:
+1) Enables a node to run ingest pipeline
+2) Ingesting refers to adding a document to a index
+3) A simplified version of LogStash functionality within elastic
+4) Configuration node.ingest=true|false
+
+Machine Learning Role:
+1) node.ml identifies a node as a machine learning node, this lets node run machine learning jobs
+2) Configuration: node.ml=true|false
+3) Configuration: xpack.ml.enabled=true|false enables or disables the machine learning apis for the node
+4) Useful for running machine learning jobs without effecting other tasks
+
+Coordination Role:
+1) Coordination refers to the distrubution of queries and aggregate results
+2) Configuration need for this role -> node.master=false, node.data=false, node.ml=false, node.ingest=false, xpack.ml.enabled=false
+3) this role is configured by disabling all other nodes
+4) useful for coordination when you have large clusters
+
+Voting-only Role:
+1) Rarely used, you wont use it either
+2) Configuration node.voting-only=true|false
+3) A node with this role will participate in voting the new master node, but cannot be elected for master node
+
+When to change node roles:
+1) Typically used for large cluster
+2) When optimizing cluster to scale the no of requests
+3) Better understanding what hardware resources are used for
+4) Only change the roles when you have clear idea what you are doing
+
+
+
+
+
