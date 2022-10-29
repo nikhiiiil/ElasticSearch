@@ -1,0 +1,135 @@
+# Cluster Health
+GET /_cluster/health
+
+# Cluster Nodes
+GET /_cat/nodes?v
+
+# List All the Indices 
+GET /_cat/indices?v
+
+# List All the Shards
+GET /_cat/shards?v
+
+# Create index
+PUT /customers
+{
+  "settings": {
+    "number_of_replicas": 2,
+    "number_of_shards": 2
+  }
+}
+
+# Insert document into index
+POST /customers/_doc
+{
+  "name": "nikhil",
+  "age": 12
+}
+
+# Insert document into index by specifying id
+POST /customers/_doc/13
+{
+  "name": "lingam",
+  "age": 14
+}
+
+# Fetch document by id
+GET /customers/_doc/10
+
+# Update the document, add new field in document
+POST /customers/_update/10
+{
+  "doc": {
+    "occupation": "cricket"
+  }
+}
+
+# Update the document with script program
+POST /customers/_update/10
+{
+  "script": {
+    "source": "ctx._source.age++"
+  }
+}
+
+# Update the document with script program with parameters
+POST /customers/_update/10
+{
+  "script": {
+    "source": "ctx._source.age += params.num",
+    "params": {
+      "num": 5
+    }
+  }
+}
+
+# Update the document with script program with parameters, noop means no update operation
+POST /customers/_update/10
+{
+  "script": {
+    "source": """
+      if(ctx._source.age > 55){
+        ctx._source.age -= params.num;
+      } else {
+        ctx.op = 'noop'; 
+      }
+    """,
+    "params": {
+      "num": 5
+    }
+  }
+}
+
+# Delete document by using script and update call
+POST /customers/_update/10
+{
+  "script": {
+    "source": """
+      if(ctx._source.age > 55){
+        ctx._source.age -= params.num;
+      } else {
+        ctx.op = 'delete'; 
+      }
+    """,
+    "params": {
+      "num": 5
+    }
+  }
+}
+
+# Execute script if document is found else insert the update document
+POST /customers/_update/7
+{
+  "script": {
+    "source": "ctx._source.age++"
+  },
+  "upsert": {
+    "name": "dhoni",
+    "age": 40,
+    "role": "captain"
+  }
+}
+
+# Replace documents by id
+PUT /customers/_doc/7
+{
+  "name": "mahendra singh dhoni",
+  "franchise": "csk",
+  "age": 41
+}
+
+# Delete index
+DELETE /customers
+
+# Delete document from index by id
+DELETE /customers/_doc/7
+
+# Fetch Document from index
+GET /customers/_doc/7
+
+
+
+
+
+
+

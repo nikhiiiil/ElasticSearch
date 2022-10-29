@@ -1,6 +1,5 @@
 sudo sysctl -w vm.max_map_count=262144
 
-
 To Install Elastic Search:
 0) sudo sysctl -w vm.max_map_count=262144 // Only if throws error to increase virtual memory for docker
 1) docker network create elastic
@@ -19,7 +18,6 @@ TO Reset Elastic Password:
 8) docker exec -it ngp-elastic-0 /usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic
 
 
-
 To Install Kibana:
 1) docker pull docker.elastic.co/kibana/kibana:8.4.1
 2) docker run -d --name ngp-kibana --net elastic -p 5601:5601 docker.elastic.co/kibana/kibana:8.4.1
@@ -28,13 +26,9 @@ To Install Kibana:
 Elastic Search:
 
 Node- Instance of elastic search, any number of nodes can run in a single machine
-
 Cluster- group of nodes of same instances
-
 Document- Each unit of data stored in elastic search is called document, json object.
-
 Documents can be equialent to tables in sql, fields can be equivalent to column in tables
-
 Indices- Collections of documents with similar characteristics
 
 
@@ -133,6 +127,85 @@ When to change node roles:
 2) When optimizing cluster to scale the no of requests
 3) Better understanding what hardware resources are used for
 4) Only change the roles when you have clear idea what you are doing
+
+
+Managing Documents:
+
+1) Elastic documents are immutable
+2) When we update document it retrives the document, fields values are changed, existing document is replaced with modified document
+
+
+Routing:
+1) How does elastic search know where to store documents ?
+2) How does documents are found once they are index
+3) Answer is routing
+4) Routing is a process of resolving a shard for a document
+5) when we store a document elastic search uses a simple formula to find the shared "shard_num=hash(_routing) % num_primary_shards"
+6) This process is only when we try with id
+7) we can change the default routing strategy
+8) Default routing strategy distributes documents evenly among shards
+
+
+Reading document:
+1) A read request is received by a coordinating node
+2) Routing is used to resovle the replication group
+3) Adaptive Replica Selection(ARS) is used to send the query to the best suitable shard
+4) ARS helps reduce query response time
+5) ARS is a intelligent load balancer
+6) The coordinating node collects the response and send to the client
+
+Writing document:
+1) A write request is received by coordinator node
+2) Routing is use to resolve the replication group
+3) write operations are sent to primary shard
+4) primary terms and sequence numbers are used to recover from failures
+5) global and local checkpoints helps speed up the recovery process
+6) primary terms and sequence numbers are available within response
+7) incase of primary shard failure one of the replicas shard is made as primary shard
+
+
+Primary terms:
+1) Are the way for elastic serach to distinguish between old and new primary shards
+2) Essentially a counter for how many times primary shard has been changed
+
+Sequence Numbers:
+1) Appended to primary terms with the write operations
+2) Essentially a counter that is incremented for each write operation
+3) The primary shard increases the sequence number
+4) Enabled elastic search to perform write operation
+
+Recovering from a primary shard failure:
+1) primary terms and sequence numbers are key when elastic search need to recover from a primary shard
+2) Enables elastic to more efficently figure out which write operation to be performed
+3) For large indices this process is really expensive
+4) To speed up this process elastic search uses checkpoints
+
+Global and local check points:
+1) Global checkpoints are kept at replication group
+2) Local checkpoints are kept at replica shard
+3) Local checkpoint is the sequence number for the last write operation that is performed
+
+Versioning the document:
+1) It is not a revision history of documents, cannot retrive older document
+2) elasticsearch stores the "_version" field in every document
+3) it is integer field and is incremented everytime document is updated
+4) value is retained for 60 secs after deleting the document
+5) this is the default versioning and is refered to as Internal versioning
+6) External versioning type is used to maintain version outside the elastic search. ex: when documents are stored in rdbms
+7) you can tell how many times a document has been modified
+8) versioning is handly used now, it was used for Optimistic Concurrency Control, now there is a better way to handle
+9) 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
