@@ -7,7 +7,7 @@ services:
     environment:
       - xpack.security.enabled=false
       - discovery.type=single-node
-    mem_limit: 536870912
+    mem_limit: 322122547
     ulimits:
       memlock:
         soft: -1
@@ -27,7 +27,7 @@ services:
     restart: always
     environment:
       - ELASTICSEARCH_HOST=http://elasticsearch:9200
-    mem_limit: 536870912
+    mem_limit: 322122547
     ports:
       - 5601:5601
     depends_on:

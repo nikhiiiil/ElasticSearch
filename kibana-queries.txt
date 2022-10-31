@@ -129,6 +129,71 @@ GET /customers/_doc/7
 
 
 
+############## PRODUCTS INDEX #########################
+
+# Create Index
+PUT /products
+{
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1
+    }
+}
+
+# View All the documents in index
+GET /products/_search
+{
+    "query": {
+      "match_all": {}
+    }
+}
+
+# Insert Document into index
+POST /products/_doc/1
+{
+  "name": "chair",
+  "in_stock": 40,
+  "price": 100
+}
+
+# Bulk create|index|delete|update
+POST /products/_bulk
+{"create": { "_id": 2 } }
+{ "name": "laptop", "in_stock": 10, "price": 50000 }
+{"create": { "_id": 3 } }
+{ "name": "mouse", "in_stock": 30, "price": 400}
+
+# Bulk api for different indices
+POST /_bulk
+{"create": {"_index": "products","_id": 4}}
+{ "name": "watch", "in_stock": 10, "price": 5000 }
+{"update": {"_index": "products","_id": 3}}
+{ "doc": {"name": "updated laptop"}}
+{"delete": {"_index": "products","_id": 2}}
+
+# Update the documents same like where clause
+POST /products/_update_by_query
+{
+  "conflicts": "proceed", 
+  "script": {
+    "source": "ctx._source.in_stock -= params.num",
+    "params": {
+      "num": 1
+    }
+  },
+  "query": {
+    "match_all": {}
+  }
+}
+
+# Delete documents by query
+POST /products/_delete_by_query
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
 
 
 

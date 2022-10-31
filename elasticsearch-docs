@@ -194,20 +194,54 @@ Versioning the document:
 6) External versioning type is used to maintain version outside the elastic search. ex: when documents are stored in rdbms
 7) you can tell how many times a document has been modified
 8) versioning is handly used now, it was used for Optimistic Concurrency Control, now there is a better way to handle
-9) 
 
 
+Optimistic Concurrency Control:
+1) Sending write requests to elasticserach concurrently may overwrite the changes made by other
+2) Traditionally sending "_version" field in query parameter helps to prevent this
+3) Today we use "_primary_term" and "_seq_no" fields
+4) Elasticsearch will reject the operation if the primary tern and seq_no fields doesnt match with the latest document in elastic
+5) This should be handled at application level
 
 
+Update Multiple Documents based on query:
+0) Called as "_update_by_query"
+1) The Query creates a snapshot of the index for Optimistic Concurrency Control
+2) Search Queries and bulk requests are sent to the replication group sequentially, elastic retried these queries up to 10times, if the query sill fails the query is abonded and changes are not rolled back.
+3) Api Returns information about failures
+4) If a document is modified after taking the snapshot the query is aborted, this is checked from primary_term and seq_no
+5) To count version conflicts instead of aborting the query, the "conflicts" option in the query is set to "proceed".
 
 
+Delete Multiple Documents based on query:
+1) called as "_delete_by_query"
+2) Rest all things are performed same as "_update_by_query"
+3) creates snapshot, prepares batches, process them sequentially, aborted is snapshot is modified dure to conflicts
 
 
+Bulk API:
+1) we can perform index,create,update,delete on multiple documents with bulk api
+2) Bulk API expects to be in NDJSON specification
+example:
+	action_metadata\n
+	optional_source\n
+	action_metadata\n
+	optional_source\n
+2) Create document will fail if the document already exist
+3) Index adds document if not exist else replace
+4) "Content-Type: application/x-ndjson" should be passed in headers
+5) application/json is also accepted but not the right way
+6) Elastic SDKs handles this for us but we need to specify for elastic clients 
+7) Each line must end with new charecter(\n or \r\n)
+8) A failed action will not affect other actions
+9) Detailed information about each action is returned
+10) More efficient than sending individual requests
+11) Routing is used to resolve each documents shard
+12) Bulk api supports Optimistic Concurrency Control, you can include "if_primary_term" and "if_seq_no" with in action metadata
 
 
-
-
-
+Importing data with curl:
+curl -XPOST -H "Content-Type: application/x-ndjson" -u "elastic:elastic" http://localhost:9200/products/_bulk --data-binary "@products-bulk.json"
 
 
 
