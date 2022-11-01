@@ -244,4 +244,246 @@ Importing data with curl:
 curl -XPOST -H "Content-Type: application/x-ndjson" -u "elastic:elastic" http://localhost:9200/products/_bulk --data-binary "@products-bulk.json"
 
 
+#######################################################
+################### ANALYSIS ##########################
+#######################################################
+
+1) Also called text analysis
+2) Applicable to text fields/values
+3) Text values are analyzed when indexing documents
+4) The result in sored in data structure that is efficent for searching
+5) "_source" object is not used when searching for document
+6) Document -> Analyzer -> storage
+7) Analyzer has 3 parts 
+		1) Character filters (can have multiple)
+		2) Tokenizers (exactly 1)
+		3) Token filters
+8) Elastic search has builtin Analyzers, character filters, tokenizers, token filters
+9) we can also build our own analyzers
+
+Character Filters:
+1) Adds, removes, Changes characters
+2) Analyzers contains zero or more character fields
+3) Character filters are applied in which they are specified
+Example: html_strip filter
+Input: Im <em>good</em> at it&nsbp!
+Output: Im good at it!
+
+Tokenizers:
+1) An analyzer contains 1 tokenizer
+2) Tokenizes a string means splits into tokens
+3) Characters may be stried as part of tokenization
+Example:
+Input: Im good at it !
+Ouptut: ["Im", "good", "at", "it"]
+
+Token Filters:
+1) Receives output of Tokenizers as input
+2) can have zero or more number of token filters in analyzer
+3) Token filters are applied in which they are specified
+Example: (Lower case filter)
+Input: ["Im", "good", "at", "it"]
+Output: ["im", "good", "at", "it"]
+
+Inverted Indexes:
+0) values for text fields are analyzed and results are stored in inverted index
+1) Mapping between terms and which documents contains them
+2) Outside the context of analyzers, we use "TERM" terminology
+3) Terms are sorted alphabetically for performance reasons
+4) Inverted indices contains more than just terns and documents ids (Example for relevance scoring)
+5) One inverted index per text field
+6) Other data types use BKD trees
+7) Created and maintained by Apache Lucene, not by elastic
+8) Inverted indices enables fast Searched
+
+Ex: Consider index has below documents
+[
+	{
+		"id": 1
+		"Description": "Hello my name is xyz",
+		"country": "india"
+	},
+	{
+		"id": 1
+		"Description": "ppl call me lmn",
+		"country": "usa"
+	}
+}
+
+foreach text field it creates a inverted indexes
+for Descrition field
+		doc1	doc2
+call	-		x
+hello	x		-
+is		x		-
+lmn		-		x
+me		-		x
+my		x		-
+name	x		-
+ppl		-		x
+xyz		x		-
+
+for country field
+		doc1	doc2
+india	x		-
+usa		-		x
+
+#######################################################
+#################### Mappings #########################
+#######################################################
+
+1) Defines the structure of the document (Ex: fields and their datatypes)
+2) Same as schema in rdbms
+3) There are 2 types of Mappings
+4) Explicit mapping: we define the mappings ourselfs
+5) Dynamic mapping: Elasticsearch generates mappings for us
+
+Keyword datatype:
+1) Used for exact matches
+2) Typically used for filtering, sorting, aggregations
+3) For full-text searches uses the text data type instead (ex: searching the body text of article)
+4) datatype objects are stored using dot notations internally
+5) Keyword fields are analyzed using keyword analyzer
+6) keyword field is a no-op analyzer, it outputs unmodified string as a single token
+7) The same value is placed in inverted index
+
+for keyword field inverted index would look like
+							doc1	doc2
+"my entire field value"		x		-
+"my doc2 field valuw"		-		x
+
+
+Example: Objects are stored internally as
+{
+	"address": {
+		"number": "123A",
+		"Street": "abc colony"
+	}
+}
+
+this is stored internally as 
+
+{
+	"address.number": "123A",
+	"address.Street": "abc Colony"
+}
+
+
+
+Coercion:
+1) Datatypes are inspected when indexing documents
+2) data is validated and rejected it not matching
+3) example trying to insert object for text datatype
+4) inspects mapping fields datatype and coercise into that type if possible
+example:
+Mappings:
+{
+	"properties": {
+		"cost": { "type": "float"}
+	}
+}
+
+"7.4"  => coercion  => 7.4
+		(analyzes the datatype from mapping and converts into it if possible)
+
+5) "_source" always stores the value that is passed while indexing
+6) "_source" object still contains "7.4" because search is performed on the inverted indexex, BKD tress
+7) supplying a float value to integer type will truncate the decimal and stores the number
+8) coercion is not used for dynamic mapping
+9) Always try to use correct values, especially firsttime you index a field
+10) coercion is enabled by default, it can be disable according to preference
+
+
+Introduction to Arrays:
+1) In elasticsearch there is not such thing as array datatype
+2) if you havent provided mapping it stored as text datatype
+Example:
+POST /_analyze
+{
+  "text": ["my name is", "unknown to me"],
+  "analyzer": "standard"
+}
+
+3) Any field may contain zero or more values
+	- No configuration or mapping is needed
+	- simply supply a array of values while indexing a document
+4) Array values should be of same datatype is the only constraint
+
+Examples: Of correct datatypes
+["sita", "geeta"]
+[12.9, 45.6]
+[true, false, true]
+[{"name": "abc"}, {"name": "xyz"}] //Allowed
+
+5) Coercion only works for fields if mappings are already provided
+Coercion:
+["sita", "geeta"]
+[12.9, "45.6"]
+[true, false, "true"]
+
+[{"name": "abc"}, {"name": "xyz"}, false] // this is not allowed as it wont be able to coercion
+
+6) In general its not recommended to depend on coercion
+7) Array may contain nested arrays
+8) Array are flattened during indexing
+9) [1, [2,3]] becomes [1,2,3]
+10) Remember to use "nested" data type for array of objects if you need to query the objects independently
+Suppose you are adding a below document
+{
+	"name": "nikhil",
+	"eduction": [
+		{
+			"name": "jain university",
+			"location": "bangalore"
+		},
+		{
+			"name": "raos college",
+			"location": "ndl"
+		}
+	]
+}
+for this it inserts 3 documents if you specify education data type as nested
+
+Date Fields:
+1) Specified in 3 ways
+	- Specially formatted strings
+	- Milli seconds since the epoch
+	- Seconds since the epoch
+2) Epoch reffers to 1st Jan, 1970.
+3) Default behaviour of date fields
+	- A date without time
+	- A date with time
+	- long value of millisecs since epoch
+4) UTC timezone aussumed if none is specified
+5) Dates must for formatted according to ISO 8601 specification
+6) Internally dates are stored as epoch as long numbers
+7) If a date contains a timezone it is converted to UTC
+8) Same happens in case of search queries too
+9) Dont provide UNIX timestamps for default fields
+
+
+Some of the date field values are:
+2022-02-23T03:34:55Z //Z means UTC timezone
+2022-02-23
+2022-02-24T04:45:23+01:30
+1424829845923
+
+
+MISSING FIELDS:
+1) All fields in elastic are Optional
+2) You can leave out fields while indexing the document
+3) Unline relational database where you need to enter null value
+4) Adding a field mapping doesnt make field as required field, you can still leave it while creating document
+5) So that means you need to handle few things at application level
+6) Searches automatically handles missing fields
+
+
+
+
+
+
+
+
+	
+
 

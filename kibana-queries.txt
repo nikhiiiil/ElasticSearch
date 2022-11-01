@@ -195,6 +195,226 @@ POST /products/_delete_by_query
 }
 
 
+# Analyzes the text
+POST /_analyze
+{
+  "text": ["Hello@! my name   is Not NIKHIL:) !!!!"],
+  "analyzer": "standard"
+}
+
+# Keyword fields are analyzed using keyword analyzers
+POST /_analyze
+{
+  "text": ["Hello@! my name   is Not NIKHIL:) !!!!"],
+  "analyzer": "keyword"
+}
+
+# Build custom analyzer
+POST /_analyze
+{
+  "text": ["Hello@! my name   is Not NIKHIL:) !!!!"],
+  "char_filter": [],
+  "tokenizer": "standard",
+  "filter": ["lowercase"]
+}
+
+
+# Coercion
+PUT /coercion_test/_doc/1
+{
+    "cost": 7.4
+}
+
+# value is inserted coercion converts string to float
+PUT /coercion_test/_doc/2
+{
+    "cost": "7.4"
+}
+
+# Throws exception
+PUT /coercion_test/_doc/2
+{
+    "cost": "7.4m"
+}
+
+# _source value is still string itself
+GET /coercion_test/_doc/2
+
+# Array datatype
+POST /_analyze
+{
+  "text": ["my name is", "unknown to me"],
+  "analyzer": "standard"
+}
+
+# Create Index with Mappings
+PUT /reviews
+{
+  "mappings": {
+    "properties": {
+      "rating": {"type": "float"},
+      "content": {"type": "text"},
+      "product_id": {"type": "integer"},
+      "author": {
+        "properties": {
+          "first_name": {"type": "text"},
+          "last_name": {"type": "text"},
+          "email": {"type": "keyword"}
+        }
+      }
+    }
+  },
+  "settings": {
+    "number_of_replicas": 1,
+    "number_of_shards": 1
+  }
+}
+
+# Create index with mappings using dot notations
+PUT /reviews_dot_notation
+{
+  "mappings": {
+    "properties": {
+      "rating": {"type": "float"},
+      "content": {"type": "text"},
+      "product_id": {"type": "integer"},
+      "author.first_name": {"type": "text"},
+      "author.last_name": {"type": "text"},
+      "author.email": {"type": "keyword"}
+    }
+  },
+  "settings": {
+    "number_of_replicas": 1,
+    "number_of_shards": 1
+  }
+}
+
+# Retrieve mapping details of index
+GET /reviews/_mapping
+
+# Retrive specific field mappings
+GET /reviews/_mapping/field/content
+
+# Retrive inner field mappings
+GET /reviews/_mapping/field/author.email
+
+# Insert 
+PUT /reviews/_doc/1
+{
+  "rating": 5.0,
+  "content": "Awesome context",
+  "product_id": 1,
+  "author": {
+    "first_name": "lingam",
+    "last_name": "nikhil",
+    "email": "lingam.nikhil@gmail.com"
+  }
+}
+
+# Fetch index mappings
+GET reviews_dot_notation/_mapping
+
+# Add extra mapping field to existing index
+PUT /reviews_dot_notation/_mapping
+{
+  "properties": {
+    "created_at": { "type": "date" }
+  }
+}
+
+# Fetch index mappings
+GET reviews_dot_notation/_mapping
+
+# Retrieve all documents in index
+GET /reviews/_search
+{
+  "query": {
+      "match_all": {}
+    }
+}
+
+# Fetch specifix document by id
+GET /reviews/_doc/1
+
+# Delete index
+DELETE /reviews
+
+# Insert documents into review_dot_notation, Assumes mid night 00:00:00
+POST /reviews_dot_notation/_doc/1
+{
+  "rating": 5.0,
+  "content": "Awesome context",
+  "product_id": 1,
+  "created_at": "2022-11-01", 
+  "author": {
+    "first_name": "lingam",
+    "last_name": "nikhil",
+    "email": "lingam.nikhil@gmail.com"
+  } 
+}
+
+# ISO 8601 time format
+POST /reviews_dot_notation/_doc/2
+{
+  "rating": 3.0,
+  "content": "Not bad, could watch it.",
+  "product_id": 2,
+  "created_at": "2022-11-01T10:30:45Z", 
+  "author": {
+    "first_name": "yuvraj",
+    "last_name": "singh",
+    "email": "yuvraj.singh@gmail.com"
+  } 
+}
+
+# If not in UTC zone specify the offset time 
+POST /reviews_dot_notation/_doc/3
+{
+  "rating": 4.0,
+  "content": "Learnt many thing, i would recommend",
+  "product_id": 3,
+  "created_at": "2022-11-01T10:30:45+01:00", 
+  "author": {
+    "first_name": "sachin",
+    "last_name": "tendulkar",
+    "email": "sachin.tendulkar@gmail.com"
+  } 
+}
+
+# Date in epoch
+POST /reviews_dot_notation/_doc/4
+{
+  "rating": 5.0,
+  "content": "I loved the detailed explanation!!!",
+  "product_id": 2,
+  "created_at": "1456011284000", 
+  "author": {
+    "first_name": "rohit",
+    "last_name": "sharma",
+    "email": "rohit.sharma@gmail.com"
+  } 
+}
+
+# Without created_at field
+POST /reviews_dot_notation/_doc/7
+{
+  "rating": 4.5,
+  "content": "It's good",
+  "product_id": 2,
+  "author": {
+    "first_name": "MS",
+    "last_name": "Dhoni",
+    "email": "ms.dhoni@gmail.com"
+  } 
+}
+
+GET /reviews_dot_notation/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
 
 
 
