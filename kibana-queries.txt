@@ -415,6 +415,68 @@ GET /reviews_dot_notation/_search
   }
 }
 
+# Get All ILM Policies
+GET _ilm/policy
 
+# Get ILM policy of the index
+GET /products/_ilm/explain
 
+# Create policy
+PUT /_ilm/policy/my-policy-1
+{
+  "policy": {
+    "phases": {
+      "delete": {
+        "min_age": "15d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}
 
+# Get Policy
+GET /_ilm/policy/my-policy-1
+
+# Create Index
+PUT /test 
+{
+  "settings": {
+    "number_of_replicas": 2,
+    "number_of_shards": 2
+  }
+}
+
+# Get ILM Policy
+GET /test/_ilm/explain
+
+# Apply policy to existing index
+PUT /test/_settings
+{ "lifecycle.name": "my-policy-1" }
+
+# Get ILM Policy
+GET /test/_ilm/explain
+
+# Remove policy from index
+POST /test/_ilm/remove?pretty
+
+# Remove or all indices with pattern
+POST /test-*/_ilm/remove
+
+# Create policy
+PUT /_ilm/policy/my-policy-1
+{
+  "policy": {
+    "phases": {
+      "delete": {
+        "min_age": "15d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}
+
+# Any change to the policy remove from all indices and re-add the policy
