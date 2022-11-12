@@ -478,12 +478,110 @@ MISSING FIELDS:
 6) Searches automatically handles missing fields
 
 
+Mapping Parameters:
+- coerce: to disable the coersion which is enabled by default
+- Can be set at mapping field level or at index level in settings. Coerce set at field level will override index level settings
+- doc_values: One of the data structure, added in addition to inverted index, takes storage, usefull for sorting, aggregations operations
+- Index: when this field is set to false, this field is not stored in internal datastructures like inverted index, but it is only stored in "_source", cannot be used in search queries, saves disk space, improves through put, fields with disabled index can still be used for aggregations.
+- null_value: In general null values cannot be index and searched, use this parameter to replace null with another value provided with this parameter, Only works with empty null values, providing empty array doesnt consider as null, replacement value should be of same datatype as field, "_source" is not impacted with this it will still contain the original value.
+- copy_to: Used to copy multiple field values into a group field, example is fullname field which combines firstname and lastname, values are copied not terms/tokens, copied values will not be part of "_source" object
+
+ 
+Update Mapping of Index:
+1) In general field mapping cannot be updated
+2) we can add new field mappings thats different
+3) updating mappings for documents would be problematic because
+   - text values are already analyzed
+   - Changing some datatypes requires you to rebuild the whole datastructure
+4) even for empty index, we cannot update the mappings
+5) we cannot remove the field once it is mapped
+	- just leave out the field while indexing
+	- use update query by to remove the field to reclaim the disk space
+6) Once solution is to reindex documents to a new index
+
+
+ReIndex Documents with ReIndex API:
+1) you can copy documents from one index to another
+2) destination index can be new index or older index with data
+3) you can execute scripts in reindex api to move only documents matching the query
+4) you can put conditions ont he documents you have alias
+5) you can delete documents while indexing
+6) you can choose noop for specifix documents based on conditions
+7) you can change field name while reindexing the document
+
+Alias: 
+1) if you just want to reindex for column change there is another way to handle it with aliases in elastic
+2) doesnt require documents to be reindexed
+3) aliases can be used within queries
+4) aliases are defined with a field mapping
+5) field alias can actually be updated to a different field not the alias name
+6) simply perform a mapping update with new path
+7) posible because alias doesnt effect indexing
+   - Its a query level construct
+8) similar to field aliases elastic also supports index aliases
+9) Typically used when dealing with large amount of data
+
+
+Multiple field mappings:
+1) you can have more than 1 type for a field
+2) should be specified in mappings 
+
+
+
+Index Templates:
+1) Index templates specify settings and mappings
+2) they are applied to indices that match one or more patterns
+3) patterns may include wildcards(*)
+4) Index templates only applied to new indices
+5) settings and mapping created at index creation is given preferrence
+
+
+Elastic Common Schema (ECS):
+1) A specification for common fields and how they should be mapped
+2) Before ECS, they is not cohesion between fields
+3) Ingestion logs from nginx and apache could give different field names
+4) ECS means common fields are named same thing (ex: "@timestamp")
+5) use-case independent
+6) Group of fields are referred to as field sets
+7) In ECS documents are referred to as events (ex: ECS doesnt provide fields for non-events like products)
+8) Mostly used for standard events (ex: web server logs, metrics etc)
+9) ECS is already been handled by Elastic stack products
+   - If you use them you, you need not to actively deal with ECS
+   
+
+
+Best practises for mappings:
+1) set "doc_values=false" if you dont need field for sorting, aggregations, scripting
+2) set "norms=false" if you dont use relevance scoring
+3) set "index=fasle" if you dont need to filter on values
+4) always prefer explicit mapping over dynamic mappings
+5) dont specify both text and keyword unless its required, you can still use for aggregations, eg for time series data
+6) set "dynamic=false" to disable dynamic mapping
+   - new fields are ignored if not added in explicit mapping
+   - they are still part of "_source"
+   - no inverted index is created for new fields
+   - search results for new fields are ignored, gives no results
+   - settings value to false elastic will still allow documents with new fields to be added
+   - settings value to strict will not allow new fields if they are not present in mappings
+7) set "numeric_detection:true" elastic will search for numeric values in string format 
+
+
+Stemming:
+1) Its a form to store words in their root form
+   - example: drinking -> drink, loved -> love
+2) Stemming is used by elastic internally.
+
+Stop words:
+1) words that are filtered out during text analysis
+   - common words such as 'a', 'the', 'an', 'is' etc
+2) because they provide no value in searching
+3) Not removed by default, generally its not recomended
+                  
 
 
 
 
 
 
-	
 
 

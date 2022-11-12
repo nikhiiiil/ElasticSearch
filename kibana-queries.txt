@@ -480,3 +480,199 @@ PUT /_ilm/policy/my-policy-1
 }
 
 # Any change to the policy remove from all indices and re-add the policy
+DELETE /_ilm/policy/my-policy-1
+
+#Mapping Parameters examples, Not tested refer for syntax
+PUT /reviews_example
+{
+  "mappings": {
+    "properties": {
+      "rating": {"type": "float","coerce": false, "index": false},
+      "content": {"type": "text", "doc_values": false},
+      "product_id": {"type": "integer"},
+      "author.first_name": {"type": "text", "copy_to": "author.full_name"},
+      "author.last_name": {"type": "text","copy_to": "author.full_name"},
+      "author.email": {"type": "keyword"},
+      "author.full_name": {"type": "text"}
+    }
+  },
+  "settings": {
+    "index.mapping.coerce": false,
+    "number_of_replicas": 1,
+    "number_of_shards": 1
+  }
+}
+
+
+GET /_cat/indices
+
+GET /reviews/_mapping
+
+# Create a new index with modified mappings and reindex data
+PUT /reviews_new
+{
+  "mappings": {
+      "properties": {
+        "author": {
+          "properties": {
+            "email": {
+              "type": "keyword"
+            },
+            "first_name": {
+              "type": "text"
+            },
+            "last_name": {
+              "type": "text"
+            }
+          }
+        },
+        "content": {
+          "type": "text"
+        },
+        "product_id": {
+          "type": "keyword"
+        },
+        "rating": {
+          "type": "float"
+        }
+      }
+    }
+}
+
+# ReIndex all the documents from one source index to dest index
+POST /_reindex
+{
+  "source": {
+    "index": "reviews"
+  },
+  "dest": {
+    "index": "reviews_new"
+  }
+}
+
+GET /reviews_new/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+POST /reviews_new/_delete_by_query
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# ReIndex all the documents from one source index to dest index, with modifed values to be shown in _source
+POST /_reindex
+{
+  "source": {
+    "index": "reviews"
+  },
+  "dest": {
+    "index": "reviews_new"
+  },
+  "script": {
+    "source": """
+      if(ctx._source.product_id != null){
+        ctx._source.product_id = ctx._source.product_id.toString();
+      }
+    """
+  }
+}
+
+GET /reviews_new/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+#Create index template 
+PUT /_template/access-logs
+{
+  "index_patterns": ["access-logs-*"],
+  "settings": {
+    "number_of_shards": 2,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "properties": {
+      "@timestamp": {
+        "type": "date"
+      },
+      "http.response.status_code": {
+        "type": "integer"
+      },
+      "http.request.referrer": {
+        "type": "keyword"
+      },
+      "url.original": {
+        "type": "keyword"
+      }
+    }
+  }
+}
+
+# Create index
+put /access-logs-2022-11-12
+
+# Get the index mapping and settings
+GET /access-logs-2022-11-12
+
+# Delete index
+DELETE /access-logs-2022-11-12
+
+
+# Search Query DSL
+# Match All the documents
+GET /products/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# Explanation for search result on document
+GET /products/_explain/1
+{
+  "query": {
+    "term": {
+      "tag": "Snacks"
+    }
+  }
+}
+
+# Search is performed on inverted index
+# Inverted index is created after analyzing and converting to lower case in standard analyzer
+
+# search directly on inverted index
+GET /products/_search
+{
+  "query": {
+    "term": {
+      "name": "lobster"
+    }
+  }
+}
+
+# search directly on inverted index, since in inverted index keys are stored in lowercase
+GET /products/_search
+{
+  "query": {
+    "term": {
+      "name": "Lobster"
+    }
+  }
+}
+
+# search key -> analyze -> inverted index here
+GET /products/_search
+{
+  "query": {
+    "match": {
+      "name": "lobster"
+    }
+  }
+}
